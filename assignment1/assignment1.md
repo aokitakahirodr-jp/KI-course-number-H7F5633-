@@ -1,7 +1,7 @@
 # Assignment 1
 
-**Name:** Takahiro Aoki
-**Course:** KI course H7F5633
+- **Name:** Takahiro Aoki
+- **Course:** KI course H7F5633
 
 ## Task 1
 ###2a. What is the medically relevant insight from the article?
@@ -15,3 +15,17 @@
 
 ## Task 2
 Done.
+
+## Task 3
+Done.
+
+## Task 4
+sqrt(10)                 # 1. 3.162278
+log(32, base = 2)        # 2. 5   （log2(32) でも可）
+sum(1:1000)              # 3. 500500
+sum(seq(2, 1000, by = 2))# 4. 250500
+choose(100, 2)           # 5. 4950
+choose(100, 3)           # 6. 161700
+
+## Task 5
+

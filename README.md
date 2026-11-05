@@ -36,3 +36,6 @@ devtools::install_github("hirscheylab/tidybiology")
 - `chromosome` and `proteins` are from the tidybiology package.
 
 ## Software
+R version 4.6.2 (2026-10-29)
+Platform: aarch64-apple-darwin23
+Running under: macOS Tahoe 26.6.2

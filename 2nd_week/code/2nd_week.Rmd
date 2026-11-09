@@ -1,0 +1,637 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(data.table)
+library(patchwork)
+data_27subset <- fread(file.choose())
+
+# データの行数と列数
+dim(data_27subset)
+
+# 列名を確認
+colnames(data_27subset)
+
+# 最初の3行を確認
+head(data_27subset, 3)
+
+
+unique(data_27subset$subset)
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+#Fig 3A
+# データの準備
+plot_data <- data_27subset %>%
+  mutate(
+    significance = case_when(
+      state_FDR < 0.05 & activity_FDR < 0.05 ~ "Both significant",
+      state_FDR < 0.05 ~ "Disease-state only",
+      activity_FDR < 0.05 ~ "Disease-activity only",
+      TRUE ~ "Not significant"
+    )
+  )
+
+# logFCを-3〜3に制限した列を作成
+plot_data <- plot_data %>%
+  mutate(
+    state_plot = pmax(-3, pmin(3, state_logFC)),
+    activity_plot = pmax(-3, pmin(3, activity_logFC))
+  )
+
+# 列が作成されたか確認
+colnames(plot_data)
+
+# 描画順を指定
+plot_data$significance <- factor(
+  plot_data$significance,
+  levels = c(
+    "Not significant",
+    "Disease-state only",
+    "Disease-activity only",
+    "Both significant"
+  )
+)
+
+# 描画順に並べ替え
+plot_data <- plot_data %>%
+  arrange(significance)
+
+p_NCD4 <- ggplot(
+  filter(plot_data, subset == "B05_NCD4"),
+  aes(
+    x = state_plot,
+    y = activity_plot,
+    color = significance
+  )
+) +
+  geom_point(size = 0.7, alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed",
+             color = "grey60") +
+  geom_vline(xintercept = 0, linetype = "dashed",
+             color = "grey60") +
+  scale_color_manual(values = c(
+    "Not significant" = "grey75",
+    "Disease-state only" = "#0072B2",
+    "Disease-activity only" = "#C0392B",
+    "Both significant" = "#E89422"
+  )) +
+  scale_x_continuous(
+    limits = c(-3, 3),
+    breaks = c(-3, 0, 3)
+  ) +
+  scale_y_continuous(
+    limits = c(-3, 3),
+    breaks = c(-3, 0, 3)
+  ) +
+  labs(
+    x = "Disease-state (logFC)",
+    y = "Disease-activity (logFC)",
+    color = "Significance"
+  ) +
+  coord_fixed() +
+  theme_classic(base_size = 13)
+
+p_NCD4 <- p_NCD4 +
+  guides(
+    color = guide_legend(
+      override.aes = list(
+        size = 4,   # Legendのドットサイズ
+        alpha = 1   # Legendのドットの透明度
+      )
+    )
+  ) +
+  theme(
+    # labs() の文字サイズ
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16),
+
+    # 軸の目盛り文字サイズ
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+
+    # Legendの文字サイズ
+    legend.title = element_text(size = 0),
+    legend.text = element_text(size = 16),
+
+    # Legendの位置
+    legend.position = "right"
+  )
+
+print(p_NCD4)
+
+```
+```{r}
+#Fig S3A
+# データをコピー
+df <- copy(data_27subset)
+
+# 5分類の順番を指定
+df[, siggroup005 := factor(
+  siggroup005,
+  levels = c(
+    "neither",
+    "only_state",
+    "only_activity",
+    "significant_in_both",
+    "discordant"
+  )
+)]
+
+# 描画順を指定
+df$significance <- factor(
+  df$significance,
+  levels = c(
+    "Not significant",
+    "Disease-state only",
+    "Disease-activity only",
+    "Both significant"
+  )
+)
+
+# 描画順に並べ替え
+df <- plot_data %>%
+  arrange(significance)
+
+# logFCを-3から3の範囲に収める
+df[, state_plot := pmax(-3, pmin(3, state_logFC))]
+df[, activity_plot := pmax(-3, pmin(3, activity_logFC))]
+
+# 散布図
+p_S3A <- ggplot(
+  df,
+  aes(
+    x = state_plot,
+    y = activity_plot,
+    color = siggroup005
+  )
+) +
+  geom_point(size = 0.3, alpha = 0.6) +
+  facet_wrap(~ subset, ncol = 9) +
+  geom_hline(yintercept = 0, linetype = "dashed",
+             color = "grey60") +
+  geom_vline(xintercept = 0, linetype = "dashed",
+             color = "grey60") +
+  scale_color_manual(values = c(
+    "neither" = "grey75",
+    "only_state" = "#0072B2",
+    "only_activity" = "#C0392B",
+    "significant_in_both" = "#E89422",
+    "discordant" = "#9467BD"
+  )) +
+  scale_x_continuous(breaks = c(-3, 0, 3)) +
+  scale_y_continuous(breaks = c(-3, 0, 3)) +
+  coord_fixed() +
+  labs(
+    x = "Disease-state (logFC)",
+    y = "Disease-activity (logFC)",
+    color = "DEG classification"
+  ) +
+  theme_classic(base_size = 10) +
+  theme(
+    strip.text = element_text(size = 7),
+    axis.text = element_text(size = 7),
+    legend.position = "bottom",
+    legend.text = element_text(size = 12)
+  ) +
+    guides(
+    color = guide_legend(
+      override.aes = list(size = 3, alpha = 1)
+    )
+  ) 
+
+# plotsフォルダーにPDFを保存
+ggsave(
+  "../plots/Figure_S3A.pdf",
+  plot = p_S3A,
+  width = 15,
+  height = 7
+)
+
+```
+
+```{r}
+#Fig S3B
+# DEG数を集計
+deg_counts <- data_27subset[
+  ,
+  .(
+    Disease_state = sum(state_FDR < 0.05, na.rm = TRUE),
+    Disease_activity = sum(activity_FDR < 0.05, na.rm = TRUE)
+  ),
+  by = subset
+]
+
+# 結果を確認
+print(deg_counts)
+
+# 横長データを縦長データに変換
+deg_long <- melt(
+  deg_counts,
+  id.vars = "subset",
+  variable.name = "Signature",
+  value.name = "Number_DEGs"
+)
+
+# 凡例の順番を設定
+deg_long[, Signature := factor(
+  Signature,
+  levels = c("Disease_state", "Disease_activity"),
+  labels = c("Disease-state", "Disease-activity")
+)]
+
+# Disease-state / Disease-activityの比で細胞を並べる
+deg_counts[, ratio := 
+  (Disease_state + 1) / (Disease_activity + 1)
+]
+
+cell_order <- deg_counts[
+  order(-ratio),
+  subset
+]
+
+deg_long[, subset := factor(
+  subset,
+  levels = cell_order
+)]
+
+# 棒グラフ
+p_S3B <- ggplot(
+  deg_long,
+  aes(
+    x = subset,
+    y = Number_DEGs,
+    fill = Signature
+  )
+) +
+  geom_col(
+    position = position_dodge(width = 0.8),
+    width = 0.75
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Disease-state" = "#0072B2",
+      "Disease-activity" = "#D55E00"
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Number of DEGs",
+    fill = NULL
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.text.x = element_text(
+      angle = 60,
+      hjust = 1,
+      vjust = 1,
+      size = 9
+    ),
+    axis.text.y = element_text(size = 10),
+    axis.title.y = element_text(size = 12),
+    legend.position = "top",
+    legend.text = element_text(size = 11)
+  ) +
+  guides(
+    fill = guide_legend(
+      override.aes = list(alpha = 1)
+    )
+  )
+
+# plotsフォルダーにPDFを保存
+ggsave(
+  "plots/Figure_S3B.pdf",
+  plot = p_S3B,
+  width = 15,
+  height = 7
+)
+```
+
+```{r}
+#Fig S3C
+# 各細胞のSpearman相関係数
+cor_df <- data_27subset[
+  ,
+  .(
+    correlation = cor(
+      state_logFC,
+      activity_logFC,
+      method = "spearman",
+      use = "complete.obs"
+    )
+  ),
+  by = subset
+]
+
+print(cor_df)
+
+cor_df[, lineage := fcase(
+  grepl("^A", subset), "B cell",
+  grepl("^B", subset), "CD4 T cell",
+  grepl("^C", subset), "CD8 T cell",
+  grepl("^D", subset), "DC",
+  grepl("^E", subset), "Monocyte",
+  grepl("^F", subset), "Neutrophil",
+  grepl("^G", subset), "NK cell"
+)]
+
+# 相関係数の小さい順に並べる
+cor_df <- cor_df[order(correlation)]
+
+cor_df[, subset := factor(
+  subset,
+  levels = subset
+)]
+
+p_S3C <- ggplot(
+  cor_df,
+  aes(
+    x = subset,
+    y = correlation,
+    fill = lineage
+  )
+) +
+  geom_col(width = 0.8) +
+  scale_fill_manual(values = c(
+    "B cell" = "#B9F000",
+    "CD4 T cell" = "#D00000",
+    "CD8 T cell" = "#937957",
+    "DC" = "#9BEFF1",
+    "Monocyte" = "#24249A",
+    "Neutrophil" = "#BDBDBD",
+    "NK cell" = "#D8C800"
+  )) +
+  labs(
+    x = NULL,
+    y = "Spearman correlation coefficient",
+    fill = "Lineage"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.text.x = element_text(
+      angle = 60,
+      hjust = 1,
+      vjust = 1,
+      size = 8
+    ),
+    axis.text.y = element_text(size = 10),
+    axis.title.y = element_text(size = 12),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 11)
+  )
+
+print(p_S3C)
+
+ggsave(
+  "../plots/Figure_S3C.pdf",
+  plot = p_S3C,
+  width = 11,
+  height = 5,
+  units = "in",
+  device = "pdf"
+)
+```
+
+```{r} 
+#Fig 3B
+# データをコピー
+df <- copy(data_27subset)
+
+# 細胞ごとにDEG数を集計
+fig3b_df <- df[
+  ,
+  .(
+    state_only = sum(siggroup005 == "only_state", na.rm = TRUE),
+    activity_only = sum(siggroup005 == "only_activity", na.rm = TRUE),
+    both = sum(
+      state_FDR < 0.05 & activity_FDR < 0.05,
+      na.rm = TRUE
+    ),
+    shared = sum(
+      siggroup005 == "significant_in_both",
+      na.rm = TRUE
+    )
+  ),
+  by = subset
+]
+
+# DEGの和集合
+fig3b_df[, total_DEGs := state_only + activity_only + both]
+
+# Jaccard index
+fig3b_df[, jaccard := shared / total_DEGs]
+
+# 各DEG分類の割合
+fig3b_df[, state_prop := state_only / total_DEGs]
+fig3b_df[, activity_prop := activity_only / total_DEGs]
+fig3b_df[, both_prop := both / total_DEGs]
+
+print(fig3b_df)
+# 細胞系統
+fig3b_df[, lineage := fcase(
+  grepl("^A", subset), "B",
+  grepl("^B", subset), "CD4",
+  grepl("^C", subset), "CD8",
+  grepl("^D", subset), "DC",
+  grepl("^E", subset), "Monocyte",
+  grepl("^F", subset), "Neutrophil",
+  grepl("^G", subset), "NK"
+)]
+
+# 3グループに分類（近似）
+fig3b_df[, pattern := fcase(
+  jaccard > 0.15, "Shared",
+  state_only >= activity_only, "Disease-state dominant",
+  default = "Disease-activity dominant"
+)]
+
+# グループの順番
+fig3b_df[, pattern := factor(
+  pattern,
+  levels = c(
+    "Disease-state dominant",
+    "Shared",
+    "Disease-activity dominant"
+  )
+)]
+
+# 細胞の並び順
+setorder(fig3b_df, pattern, -state_prop)
+
+fig3b_df[, subset := factor(
+  subset,
+  levels = as.character(subset)
+)]
+
+p_top <- ggplot(
+  fig3b_df,
+  aes(
+    x = subset,
+    y = total_DEGs,
+    fill = lineage
+  )
+) +
+  geom_col(width = 0.85) +
+  facet_grid(
+    ~ pattern,
+    scales = "free_x",
+    space = "free_x"
+  ) +
+  scale_fill_manual(values = c(
+    "CD4" = "#D00000",
+    "CD8" = "#937957",
+    "NK" = "#D8C800",
+    "B" = "#B9F000",
+    "Monocyte" = "#24249A",
+    "DC" = "#9BEFF1",
+    "Neutrophil" = "#BDBDBD"
+  )) +
+  labs(
+    x = NULL,
+    y = "Number of DEGs",
+    fill = "Lineage"
+  ) +
+  theme_classic(base_size = 11) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    strip.text = element_text(size = 12),
+    legend.position = "right",
+    legend.text = element_text(size = 10)
+  )
+
+# 縦長データへ変換
+fig3b_long <- melt(
+  fig3b_df,
+  id.vars = c("subset", "pattern"),
+  measure.vars = c(
+    "state_prop",
+    "activity_prop",
+    "both_prop"
+  ),
+  variable.name = "DEGtype",
+  value.name = "Proportion"
+)
+
+# 積み上げ順
+fig3b_long[, DEGtype := factor(
+  DEGtype,
+  levels = c(
+    "state_prop",
+    "activity_prop",
+    "both_prop"
+  ),
+  labels = c(
+    "Disease-state only",
+    "Disease-activity only",
+    "Both significant"
+  )
+)]
+
+# 下段の棒グラフ
+fig3b_long$DEGtype <- factor(
+  fig3b_long$DEGtype,
+  levels = c(
+    "Disease-state only",
+    "Both significant",
+    "Disease-activity only"
+  )
+)
+
+p_bottom <- ggplot(
+  fig3b_long,
+  aes(
+    x = subset,
+    y = Proportion,
+    fill = DEGtype
+  )
+) +
+  geom_col(width = 0.85) +
+  facet_grid(
+    ~ pattern,
+    scales = "free_x",
+    space = "free_x"
+  ) +
+  scale_fill_manual(values = c(
+    "Disease-state only" = "#0072B2",
+    "Both significant" = "#E89422",
+    "Disease-activity only" = "#C0392B"
+  )) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = c(0, 0.25, 0.5, 0.75, 1),
+    expand = c(0, 0)
+  ) +
+  labs(
+    x = NULL,
+    y = "Proportion of DEGs",
+    fill = "DEG type"
+  ) +
+  theme_classic(base_size = 11) +
+  theme(
+    axis.text.x = element_text(
+      angle = 60,
+      hjust = 1,
+      size = 10
+    ),
+    strip.text = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size = 10)
+  )
+
+# 上段：Number of DEGs
+p_top <- p_top +
+  theme(
+    axis.title.y = element_text(size = 18),
+    axis.text.y = element_text(size = 14),
+    strip.text = element_text(size = 14),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+# 下段：Proportion of DEGs
+p_bottom <- p_bottom +
+  theme(
+    axis.title.y = element_text(size = 18),
+    axis.text.y = element_text(size = 14),
+    axis.text.x = element_text(
+      size = 12,
+      angle = 60,
+      hjust = 1
+    ),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14)
+  )
+
+p_Fig3B <- p_top / p_bottom +
+  plot_layout(heights = c(1, 1.2))
+
+print(p_Fig3B)
+
+ggsave(
+  "../plots/Figure_3B.pdf",
+  plot = p_Fig3B,
+  width = 13,
+  height = 7,
+  units = "in",
+  device = "pdf"
+)
+```
+

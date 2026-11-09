@@ -162,6 +162,27 @@ p_box_jitter <- ggplot(magic_guys,
 
 p_box_jitter
 ```
+```{r}
+# Histogram
+ggsave("histogram.png", p_hist_species,
+       width = 8, height = 5, dpi = 300)
+
+ggsave("histogram.pdf", p_hist_species,
+       width = 8, height = 5)
+
+ggsave("histogram.svg", p_hist_species,
+       width = 8, height = 5)
+
+# Boxplot
+ggsave("boxplot.png", p_box_jitter,
+       width = 8, height = 5, dpi = 300)
+
+ggsave("boxplot.pdf", p_box_jitter,
+       width = 8, height = 5)
+
+ggsave("boxplot.svg", p_box_jitter,
+       width = 8, height = 5)
+```
 
 
 
